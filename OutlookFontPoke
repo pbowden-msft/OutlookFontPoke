@@ -1,0 +1,133 @@
+#!/bin/sh
+#set -x
+
+TOOL_NAME="Microsoft Outlook 2016 for Mac Default Font Changer"
+TOOL_VERSION="1.0"
+
+## Copyright (c) 2016 Microsoft Corp. All rights reserved.
+## Scripts are not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind.
+## Microsoft disclaims all implied warranties including, without limitation, any implied warranties of merchantability or of fitness for a 
+## particular purpose. The entire risk arising out of the use or performance of the scripts and documentation remains with you. In no event shall
+## Microsoft, its authors, or anyone else involved in the creation, production, or delivery of the scripts be liable for any damages whatsoever 
+## (including, without limitation, damages for loss of business profits, business interruption, loss of business information, or other pecuniary 
+## loss) arising out of the use of or inability to use the sample scripts or documentation, even if Microsoft has been advised of the possibility
+## of such damages.
+## Feedback: pbowden@microsoft.com
+
+# Constants
+REGISTRY="$HOME/Library/Group Containers/UBF8T346G9.Office/MicrosoftRegistrationDB.reg"
+
+function ShowUsage {
+# Shows tool usage and parameters
+	echo $TOOL_NAME - $TOOL_VERSION
+	echo "Purpose: Sets the default compose and reply/forward fonts in Outlook 2016 for Mac"
+	echo "Usage: OutlookFontPoke <font-name> <font-size> <font-color>"
+	echo "Example: OutlookFontPoke 'Helvetica' '11.0pt' 'gray'"
+	echo
+	exit 0
+}
+
+function CheckRegistryExists {
+# Check if Registry exists
+if [ -f "$REGISTRY" ]; then
+	echo
+else
+	echo "Office 2016 for Mac registry DOES NOT exist at path $REGISTRY"
+	exit 1
+fi
+}
+
+function GetNodeId {
+# Get node_id value from Registry
+	local NAME="$1"
+	local PARENT="$2"
+	local NODEVALUE=$(sqlite3 "$REGISTRY" "SELECT node_id from HKEY_CURRENT_USER WHERE name='$NAME' AND parent_id=$PARENT;")
+	if [ "$NODEVALUE" == '' ]; then
+		echo "0"
+	else
+		echo "$NODEVALUE"
+	fi
+}
+
+function GetNodeVal {
+# Get node value from Registry
+	local NAME="$1"
+	local NODEID="$2"
+	local NODEVALUE=$(sqlite3 "$REGISTRY" "SELECT node_id from HKEY_CURRENT_USER_values WHERE name='$NAME' AND parent_id=$NODEID;")
+	if [ "$NODEVALUE" == '' ]; then
+		echo "0"
+	else
+		echo "$NODEVALUE"
+	fi
+}
+
+function InsertNode {
+# Insert new node into Registry
+	local NAME="$1"
+	local PARENT="$2"
+	sqlite3 "$REGISTRY" "INSERT INTO HKEY_CURRENT_USER ('parent_id','name') VALUES ($PARENT,'$NAME');"
+}
+
+function InsertValue {
+# Insert new value into Registry
+	local NODE="$1"
+	local NAME="$2"
+	local TYPE="$3"
+	local VALUE="$4"
+	sqlite3 "$REGISTRY" "INSERT INTO HKEY_CURRENT_USER_values ('node_id','name','type','value') VALUES ($NODE,'$NAME',$TYPE,'$VALUE');"
+}
+
+function DeleteValue {
+# Delete value from Registry
+	local NAME="$1"
+	local NODEID="$2"
+	sqlite3 "$REGISTRY" "DELETE FROM HKEY_CURRENT_USER_values WHERE name='$NAME' and node_id=$NODEID;"
+}
+
+# Evaluate command-line arguments
+if [[ $# = 0 ]]; then
+	ShowUsage
+else
+	FONTNAME="$1"
+	FONTSIZE="$2"
+	FONTCOLOR="$3"
+	
+	if [ "$FONTCOLOR" == '' ]; then
+		FONTCOLOR="windowtext"
+	fi
+fi
+
+## Main
+# Check that MicrosoftRegistryDB.reg actually exists. If it doesn't, error out.
+CheckRegistryExists
+# Walk the registry to find the id of the node that we need
+KEY_SOFTWARE=$(GetNodeId "Software" '-1')
+KEY_MICROSOFT=$(GetNodeId "Microsoft" "$KEY_SOFTWARE")
+KEY_OFFICE=$(GetNodeId "Office" "$KEY_MICROSOFT")
+KEY_VERSION=$(GetNodeId "15.0" "$KEY_OFFICE")
+KEY_COMMON=$(GetNodeId "Common" "$KEY_VERSION")
+KEY_MAILSETTINGS=$(GetNodeId "MailSettings" "$KEY_COMMON")
+# The MailSettings node doesn't exist by default, so if it's not already there, create it
+if [ "$KEY_MAILSETTINGS" == "0" ]; then
+	InsertNode "MailSettings" "$KEY_COMMON"
+fi
+
+KEY_MAILSETTINGS=$(GetNodeId "MailSettings" "$KEY_COMMON")
+
+# If the fonts are already set, remove the existing values
+KEY_COMPOSEFONTCOMPLEX=($GetNodeVal "ComposeFontComplex" "$KEY_MAILSETTINGS")
+if [ "$KEY_COMPOSEFONTCOMPLEX" != "0" ]; then
+	DeleteValue "ComposeFontComplex" "$KEY_MAILSETTINGS"
+	DeleteValue "ComposeFontSimple" "$KEY_MAILSETTINGS"
+fi
+KEY_REPLYFONTCOMPLEX=($GetNodeVal "ReplyFontComplex" "$KEY_MAILSETTINGS")
+if [ "$KEY_REPLYFONTCOMPLEX" != "0" ]; then
+	DeleteValue "ReplyFontComplex" "$KEY_MAILSETTINGS"
+	DeleteValue "ReplyFontSimple" "$KEY_MAILSETTINGS"
+fi
+
+# Set new font values - first one is for the Compose Font, the second is for the Reply/Forward font
+InsertValue "$KEY_MAILSETTINGS" "ComposeFontComplex" "3" "<html><head><style>/* Style Definitions */span.PersonalComposeStyle{mso-style-name:\"Personal Compose Style\";mso-style-type:personal-compose;mso-style-noshow:yes;mso-style-unhide:no;mso-ansi-font-size:$FONTSIZE;mso-bidi-font-size:11.0pt;font-family:\"$FONTNAME\";mso-ascii-font-family:\"$FONTNAME\";mso-hansi-font-family:\"$FONTNAME\";mso-bidi-font-family:\"Times New Roman\";mso-bidi-theme-font:minor-bidi;color:$FONTCOLOR;font-weight:normal;font-style:normal;text-decoration:none;text-underline:none;}--></style></head></html>"
+InsertValue "$KEY_MAILSETTINGS" "ReplyFontComplex" "3" "<html><head><style>/* Style Definitions */span.PersonalReplyStyle{mso-style-name:\"Personal Reply Style\";mso-style-type:personal-reply;mso-style-noshow:yes;mso-style-unhide:no;mso-ansi-font-size:$FONTSIZE;mso-bidi-font-size:11.0pt;font-family:\"$FONTNAME\";mso-ascii-font-family:\"$FONTNAME\";mso-hansi-font-family:Consolas;mso-bidi-font-family:''Times New Roman'';mso-bidi-theme-font:minor-bidi;color:$FONTCOLOR;font-weight:normal;font-style:normal;text-decoration:none;text-underline:none;}--></style></head></html>"
+
+exit 0
