@@ -2,7 +2,7 @@
 #set -x
 
 TOOL_NAME="Microsoft Outlook 2016 for Mac Default Font Changer"
-TOOL_VERSION="1.0"
+TOOL_VERSION=“1.1”
 
 ## Copyright (c) 2016 Microsoft Corp. All rights reserved.
 ## Scripts are not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind.
@@ -16,6 +16,8 @@ TOOL_VERSION="1.0"
 
 # Constants
 REGISTRY="$HOME/Library/Group Containers/UBF8T346G9.Office/MicrosoftRegistrationDB.reg"
+OUTLOOK2016PATH="/Applications/Microsoft Outlook.app"
+SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 
 function ShowUsage {
 # Shows tool usage and parameters
@@ -29,12 +31,25 @@ function ShowUsage {
 
 function CheckRegistryExists {
 # Check if Registry exists
-if [ -f "$REGISTRY" ]; then
-	echo
-else
-	echo "Office 2016 for Mac registry DOES NOT exist at path $REGISTRY"
-	exit 1
+if [ ! -f "$REGISTRY" ]; then
+	echo "WARNING: Registry DOES NOT exist at path $REGISTRY. Attempting to create..."
+	mkdir "$HOME/Library/Group Containers/UBF8T346G9.Office"
+	cp "$SCRIPTPATH/TemplateRegDB.reg" "$REGISTRY"
+	if [ "$?" != "0" ]; then
+		echo "ERROR: Registry could not be created."
+		exit 1
+	fi
 fi
+}
+
+function CheckLaunchState {
+# Checks to see if a process is running
+	local RUNNING_RESULT=$(ps ax | grep -v grep | grep "$1")
+	if [ "${#RUNNING_RESULT}" -gt 0 ]; then
+		echo "1"
+	else
+		echo "0"
+	fi
 }
 
 function GetNodeId {
@@ -98,7 +113,7 @@ else
 fi
 
 ## Main
-# Check that MicrosoftRegistryDB.reg actually exists. If it doesn't, error out.
+# Check that MicrosoftRegistryDB.reg actually exists. If it doesn't, attempt to create it.
 CheckRegistryExists
 # Walk the registry to find the id of the node that we need
 KEY_SOFTWARE=$(GetNodeId "Software" '-1')
@@ -128,6 +143,15 @@ fi
 
 # Set new font values - first one is for the Compose Font, the second is for the Reply/Forward font
 InsertValue "$KEY_MAILSETTINGS" "ComposeFontComplex" "3" "<html><head><style>/* Style Definitions */span.PersonalComposeStyle{mso-style-name:\"Personal Compose Style\";mso-style-type:personal-compose;mso-style-noshow:yes;mso-style-unhide:no;mso-ansi-font-size:$FONTSIZE;mso-bidi-font-size:11.0pt;font-family:\"$FONTNAME\";mso-ascii-font-family:\"$FONTNAME\";mso-hansi-font-family:\"$FONTNAME\";mso-bidi-font-family:\"Times New Roman\";mso-bidi-theme-font:minor-bidi;color:$FONTCOLOR;font-weight:normal;font-style:normal;text-decoration:none;text-underline:none;}--></style></head></html>"
-InsertValue "$KEY_MAILSETTINGS" "ReplyFontComplex" "3" "<html><head><style>/* Style Definitions */span.PersonalReplyStyle{mso-style-name:\"Personal Reply Style\";mso-style-type:personal-reply;mso-style-noshow:yes;mso-style-unhide:no;mso-ansi-font-size:$FONTSIZE;mso-bidi-font-size:11.0pt;font-family:\"$FONTNAME\";mso-ascii-font-family:\"$FONTNAME\";mso-hansi-font-family:Consolas;mso-bidi-font-family:''Times New Roman'';mso-bidi-theme-font:minor-bidi;color:$FONTCOLOR;font-weight:normal;font-style:normal;text-decoration:none;text-underline:none;}--></style></head></html>"
+InsertValue "$KEY_MAILSETTINGS" "ReplyFontComplex" "3" "<html><head><style>/* Style Definitions */span.PersonalReplyStyle{mso-style-name:\"Personal Reply Style\";mso-style-type:personal-reply;mso-style-noshow:yes;mso-style-unhide:no;mso-ansi-font-size:$FONTSIZE;mso-bidi-font-size:11.0pt;font-family:\"$FONTNAME\";mso-ascii-font-family:\"$FONTNAME\";mso-hansi-font-family:Consolas;mso-bidi-font-family:\"Times New Roman\";mso-bidi-theme-font:minor-bidi;color:$FONTCOLOR;font-weight:normal;font-style:normal;text-decoration:none;text-underline:none;}--></style></head></html>"
+
+echo "Default Outlook font set successfully."
+
+# If Outlook is already running, show a warning that the settings won't take effect until a restart occurs
+RUNSTATE=$(CheckLaunchState "$OUTLOOK2016PATH")
+if [ "$RUNSTATE" == "1" ]; then
+	echo "Outlook must be restarted to read the new font preference."
+fi
+
 
 exit 0
