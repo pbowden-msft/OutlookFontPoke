@@ -1,8 +1,8 @@
 #!/bin/sh
 #set -x
 
-TOOL_NAME="Microsoft Outlook 2016 for Mac Default Font Changer"
-TOOL_VERSION="1.3"
+TOOL_NAME="Microsoft Outlook 365/2019/2016 for Mac Default Font Changer"
+TOOL_VERSION="1.4"
 
 ## Copyright (c) 2018 Microsoft Corp. All rights reserved.
 ## Scripts are not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind.
@@ -22,7 +22,7 @@ SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 function ShowUsage {
 # Shows tool usage and parameters
 	echo $TOOL_NAME - $TOOL_VERSION
-	echo "Purpose: Sets the default compose and reply/forward fonts in Outlook 2016 for Mac"
+	echo "Purpose: Sets the default compose and reply/forward fonts in Outlook 365/2019/2016 for Mac"
 	echo "Usage: OutlookFontPoke <font-name> <font-size> <font-color>"
 	echo "Example: OutlookFontPoke 'Helvetica' '11.0pt' 'gray'"
 	echo
