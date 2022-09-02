@@ -2,7 +2,7 @@
 #set -x
 
 TOOL_NAME="Microsoft Outlook 365/2021/2019/2016 for Mac Default Font Changer"
-TOOL_VERSION="2.0"
+TOOL_VERSION="2.1"
 
 ## Copyright (c) 2022 Microsoft Corp. All rights reserved.
 ## Scripts are not supported under any Microsoft standard support program or service. The scripts are provided AS IS without warranty of any kind.
@@ -89,7 +89,7 @@ function InsertValue {
 	local NAME="$2"
 	local TYPE="$3"
 	local VALUE="$4"
-	sqlite3 "$REGISTRY" "INSERT INTO HKEY_CURRENT_USER_values ('node_id','name','type','value') VALUES ($NODE,'$NAME',$TYPE,'$VALUE');"
+	sqlite3 "$REGISTRY" "INSERT or REPLACE INTO HKEY_CURRENT_USER_values ('node_id','name','type','value') VALUES ($NODE,'$NAME',$TYPE,'$VALUE');"
 }
 
 function DeleteValue {
@@ -151,7 +151,7 @@ KEY_MAILSETTINGS=$(GetNodeId "MailSettings" "$KEY_COMMON")
 # If the fonts are already set, remove the existing values
 KEY_COMPOSEFONTCOMPLEX=$(GetValue "ComposeFontComplex" "$KEY_MAILSETTINGS")
 if [ "$KEY_COMPOSEFONTCOMPLEX" != "0" ]; then
-	if [ $DUMP ]; then
+	if [ $DUMP = true ]; then
 		echo "==Begin ComposeFontComplex=="
 		echo "$KEY_COMPOSEFONTCOMPLEX"
 		echo "==End ComposeFontComplex=="
@@ -162,7 +162,7 @@ if [ "$KEY_COMPOSEFONTCOMPLEX" != "0" ]; then
 fi
 KEY_REPLYFONTCOMPLEX=$(GetValue "ReplyFontComplex" "$KEY_MAILSETTINGS")
 if [ "$KEY_REPLYFONTCOMPLEX" != "0" ]; then
-	if [ $DUMP ]; then
+	if [ $DUMP = true ]; then
 		echo "==Begin ReplyFontComplex=="
 		echo "$KEY_REPLYFONTCOMPLEX"
 		echo "==End ReplyFontComplex=="
